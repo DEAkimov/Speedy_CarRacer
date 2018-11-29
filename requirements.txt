@@ -1,0 +1,5 @@
+torch==0.4.1
+numpy
+gym
+box2d
+box2d-kengz
