@@ -15,9 +15,13 @@ class Net(nn.Module):
         # both Normal and Beta distributions have 2 parameters
         self.policy_param_1 = nn.Linear(512, action_dim)
         self.policy_param_2 = nn.Linear(512, action_dim)
+        self.value_layer = nn.Linear(512, 1)
 
     def forward(self, screen):
         batch = screen.size(0)
         conv_features = self.conv(screen)
         features = self.projector(conv_features.view(batch, -1))
-        return self.policy_param_1(features), self.policy_param_2(features)
+        param1 = self.policy_param_1(features)
+        param2 = self.policy_param_2(features)
+        value = self.value_layer(features).squeeze(-1)
+        return param1, param2, value
