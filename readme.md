@@ -10,6 +10,7 @@ comment lines 217 and 290 in gym/envs/box2d/car_racing.py
 - [x] write wrappers for the environment
 - [x] write on-policy agent class
 - [x] write PPO trainer class
+- [ ] make PPO working
 - [ ] write some super-duper-top-secret PPO hacks
 - [ ] ????
 - [ ] PROFIT!

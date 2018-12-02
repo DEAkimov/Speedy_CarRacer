@@ -5,9 +5,9 @@ from tqdm import tqdm
 class Trainer:
     def __init__(self,
                  train_environment, test_environment, num_tests,
-                 agent, device, optimizer, value_loss,
+                 agent, distribution, device, optimizer, value_loss,
                  entropy_reg, gamma, gae_lambda, normalize_advantage,
-                 ppo_eps, num_ppo_epochs, ppo_batch_size,
+                 use_gae, ppo_eps, num_ppo_epochs, ppo_batch_size,
                  writer):
         # environments
         self.train_environment = train_environment
@@ -17,6 +17,7 @@ class Trainer:
 
         # agent and optimizer
         self.agent = agent
+        self.distribution = distribution
         self.device = device
         self.optimizer = optimizer
         assert value_loss in ['mse', 'hinge'], \
@@ -30,6 +31,7 @@ class Trainer:
         self.entropy_reg = entropy_reg
         self.gamma = gamma
         self.gae_lambda = gae_lambda
+        self.use_gae = use_gae
         self.normalize_advantage = normalize_advantage
         self.ppo_eps = ppo_eps
         self.num_ppo_epochs = num_ppo_epochs
@@ -38,8 +40,18 @@ class Trainer:
         self.writer = writer
 
         # action projector parameters
-        self.add = torch.tensor([0, 1, 1], dtype=torch.float32, device=device)
-        self.mul = torch.tensor([1, 0.5, 0.5], dtype=torch.float32, device=device)
+        if self.distribution == 'beta':
+            # change first coordinate
+            # [0, 1] -> [-1, 1]
+            # 2 * x - 1 = 2 * (x - 0.5)
+            self.add = torch.tensor([-0.5, 0, 0], dtype=torch.float32, device=device)
+            self.mul = torch.tensor([2., 1., 1.], dtype=torch.float32, device=device)
+        else:
+            # change last two coordinates
+            # [-1, 1] -> [0, 1]
+            # 0.5 * (x + 2)
+            self.add = torch.tensor([0., 1., 1.], dtype=torch.float32, device=device)
+            self.mul = torch.tensor([1., 0.5, 0.5], dtype=torch.float32, device=device)
         # print trainer parameters
         self.init_print(value_loss)
 
@@ -53,15 +65,18 @@ class Trainer:
     def project_actions(self, actions):
         return torch.clamp((actions + self.add) * self.mul, -1.0, +1.0)
 
-    def test_performance(self):
+    def test_performance(self, watch=False):
         observation = self.test_environment.reset()
         done = False
         episode_reward = 0.0
         while not done:
-            action = self.agent.act([observation])
+            with torch.no_grad():
+                action = self.agent.act([observation], greedy=True)
             env_action = self.project_actions(action).cpu().numpy()[0]
             observation, reward, done, _ = self.test_environment.step(env_action)
             episode_reward += reward
+            if watch:
+                self.test_environment.render()
         return episode_reward
 
     def collect_batch(self, time_steps):
@@ -108,9 +123,13 @@ class Trainer:
                 next_observations.view(time * batch, *obs_size)
             )
         # compute advantage with GAE
-        advantage = self.compute_gae(rewards,
-                                     values.view(time, batch),
-                                     (1.0 - is_done) * next_values.view(time, batch))
+        if self.use_gae:
+            advantage = self.compute_gae(rewards,
+                                         values.view(time, batch),
+                                         (1.0 - is_done) * next_values.view(time, batch))
+        else:
+            temp = rewards + self.gamma * (1.0 - is_done) * next_values.view(time, batch)
+            advantage = temp - values.view(time, batch)
         if self.normalize_advantage:
             advantage = (advantage - advantage.mean()) / (advantage.std())
 
@@ -179,6 +198,7 @@ class Trainer:
                 self.writer.add_scalar('policy_loss', policy_loss, step)
                 self.writer.add_scalar('value_loss', value_loss, step)
                 self.writer.add_scalar('entropy', entropy, step)
+                self.writer.add_scalar('batch_reward', batch[2].mean(), step)
             # test performance at the epoch end
             test_reward = sum([self.test_performance() for _ in range(self.num_tests)])
             self.writer.add_scalar('test_reward', test_reward / self.num_tests, epoch + 1)

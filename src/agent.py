@@ -23,10 +23,12 @@ class Agent:
     def policy(self, state):
         state = torch.tensor(state, dtype=torch.float32, device=self.device)
         param1, param2, value = self.net(state)
-        if self.distribution == 'beta':  # beta distribution requires parameters to be greater than 1
+        if self.distribution == 'beta':
+            # beta distribution requires parameters to be greater than 1
             param1, param2 = 1.0 + F.softplus(param1), 1.0 + F.softplus(param2)
         else:
-            param2 = param2.exp()
+            # normal distributions requires second param (variance) to be greater than 0
+            param2 = param2.exp()  # TODO: bound this value
         policy_distribution = self.policy_distribution(param1, param2)
         return policy_distribution, value
 
@@ -37,7 +39,7 @@ class Agent:
             # here action is assumed to be tanh(z)
             log_p_for_action = self.tanh_correction(action, log_p_for_action)
         log_p_for_action = log_p_for_action.sum(-1)
-        entropy = policy.entropy()
+        entropy = policy.entropy().prod(-1)
         return log_p_for_action, value, entropy
 
     @staticmethod
@@ -47,9 +49,13 @@ class Agent:
                            2 * torch.log(torch.exp(action) + torch.exp(-action))
         return log_p_for_action
 
-    def act(self, state):
+    def act(self, state, greedy=False):
         policy, _ = self.policy(state)
-        action = policy.sample()
+        if greedy:
+            # is it good for beta policy? I'm not sure
+            action = policy.mean
+        else:
+            action = policy.sample()
         if self.distribution == 'tanh':
             action = torch.tanh(action)
         return action
