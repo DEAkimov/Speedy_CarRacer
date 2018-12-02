@@ -15,6 +15,7 @@ class Agent:
         self.device = device
         self.distribution = distribution
         self.policy_distribution = distributions[distribution]
+        self.init_print()
 
     def init_print(self):
         print('agent initialized with {} policy'.format(self.distribution))
@@ -24,6 +25,8 @@ class Agent:
         param1, param2, value = self.net(state)
         if self.distribution == 'beta':  # beta distribution requires parameters to be greater than 1
             param1, param2 = 1.0 + F.softplus(param1), 1.0 + F.softplus(param2)
+        else:
+            param2 = param2.exp()
         policy_distribution = self.policy_distribution(param1, param2)
         return policy_distribution, value
 
@@ -33,7 +36,9 @@ class Agent:
         if self.distribution == 'tanh':
             # here action is assumed to be tanh(z)
             log_p_for_action = self.tanh_correction(action, log_p_for_action)
-        return log_p_for_action, value
+        log_p_for_action = log_p_for_action.sum(-1)
+        entropy = policy.entropy()
+        return log_p_for_action, value, entropy
 
     @staticmethod
     def tanh_correction(action, log_p_for_action):
@@ -43,8 +48,8 @@ class Agent:
         return log_p_for_action
 
     def act(self, state):
-        policy, value = self.policy(state)
+        policy, _ = self.policy(state)
         action = policy.sample()
         if self.distribution == 'tanh':
             action = torch.tanh(action)
-        return action, value
+        return action
