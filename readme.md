@@ -5,7 +5,7 @@
 
 ### Plan overview
 - [x] test environment
-- [ ] write wrappers for the environment
+- [x] write wrappers for the environment
 - [x] write on-policy agent class
 - [ ] write PPO trainer class
 - [ ] write some super-duper-top-secret PPO hacks
