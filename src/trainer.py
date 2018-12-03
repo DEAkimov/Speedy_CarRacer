@@ -1,16 +1,18 @@
 import torch
 from tqdm import tqdm
+import numpy as np
 
 
 class Trainer:
     def __init__(self,
-                 train_environment, test_environment, num_tests,
+                 train_environment, num_environments, test_environment, num_tests,
                  agent, distribution, device, optimizer, value_loss,
                  entropy_reg, gamma, gae_lambda, normalize_advantage,
                  use_gae, ppo_eps, num_ppo_epochs, ppo_batch_size,
                  writer):
         # environments
         self.train_environment = train_environment
+        self.num_environments = num_environments
         self.test_environment = test_environment
         self.num_tests = num_tests
         self.last_observation = self.train_environment.reset()
@@ -37,7 +39,10 @@ class Trainer:
         self.num_ppo_epochs = num_ppo_epochs
         self.ppo_batch_size = ppo_batch_size
 
+        # writer and statistics
         self.writer = writer
+        self.worker_reward = np.zeros((num_environments,), dtype=np.float32)
+        self.episodes_done = np.zeros((num_environments,), dtype=np.uint16)
 
         # action projector parameters
         if self.distribution == 'beta':
@@ -59,7 +64,9 @@ class Trainer:
         print('trainer initialized')
         print('training parameters:')
         print('\t value_loss: {}, gamma: {}, entropy_reg: {}'.format(vl, self.gamma, self.entropy_reg))
-        print('\t gae_lambda: {}, normalize_adv: {}'.format(self.gae_lambda, self.normalize_advantage))
+        print('\t use_gae: {}, gae_lambda: {}, normalize_adv: {}'.format(
+            self.use_gae, self.gae_lambda, self.normalize_advantage
+        ))
         print('\t ppo_batch_size: {}, ppo_epochs: {}'.format(self.ppo_batch_size, self.num_ppo_epochs))
 
     def project_actions(self, actions):
@@ -87,6 +94,16 @@ class Trainer:
             env_action = self.project_actions(action).cpu().numpy()
             observation, reward, done, _ = self.train_environment.step(env_action)
             self.last_observation = observation
+            self.worker_reward += reward
+            for i in range(self.num_environments):
+                if done[i]:
+                    self.episodes_done[i] += 1
+                    self.writer.add_scalars(
+                        'episode_reward',
+                        {'worker_{}'.format(i): self.worker_reward[i]},
+                        self.episodes_done[i]
+                    )
+                    self.worker_reward[i] = 0.0
 
             observations.append(observation)
             actions.append(action)
