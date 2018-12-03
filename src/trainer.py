@@ -189,7 +189,7 @@ class Trainer:
         variance = variance.mean()
 
         # may be we should balance value and policy losses
-        loss = value_loss - policy_loss - self.variance_reg * entrovariancepy
+        loss = value_loss - policy_loss - self.variance_reg * variance
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
