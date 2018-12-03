@@ -10,11 +10,11 @@ distributions = {
 
 
 class Agent:
-    def __init__(self, net, device, distribution):
+    def __init__(self, net, device):
         self.net = net
         self.device = device
-        self.distribution = distribution
-        self.policy_distribution = distributions[distribution]
+        self.distribution = 'categorical'
+        self.policy_distribution = torch.distributions.Categorical
         self.init_print()
 
     def init_print(self):
@@ -22,25 +22,15 @@ class Agent:
 
     def policy(self, state):
         state = torch.tensor(state, dtype=torch.float32, device=self.device)
-        param1, param2, value = self.net(state)
-        if self.distribution == 'beta':
-            # beta distribution requires parameters to be greater than 1
-            param1, param2 = 1.0 + F.softplus(param1), 1.0 + F.softplus(param2)
-        else:
-            # normal distributions requires second param (variance) to be greater than 0
-            param2 = torch.clamp(param2, -20, 2).exp()
-        policy_distribution = self.policy_distribution(param1, param2)
+        logits, value = self.net(state)
+        policy_distribution = self.policy_distribution(logits=logits)
         return policy_distribution, value
 
     def log_p_for_action(self, state, action):
         policy, value = self.policy(state)
         log_p_for_action = policy.log_prob(action)
-        if self.distribution == 'tanh':
-            # here action is assumed to be tanh(z)
-            log_p_for_action = self.tanh_correction(action, log_p_for_action)
-        log_p_for_action = log_p_for_action.sum(-1)
-        variance = policy.variance.sum(-1)
-        return log_p_for_action, value, variance
+        entropy = policy.entropy()
+        return log_p_for_action, value, entropy
 
     @staticmethod
     def tanh_correction(action, log_p_for_action):
@@ -53,7 +43,7 @@ class Agent:
         policy, _ = self.policy(state)
         if greedy:
             # is it good for beta policy? I'm not sure
-            action = policy.mean
+            action = policy.logits.argmax()
         else:
             action = policy.sample()
         if self.distribution == 'tanh':

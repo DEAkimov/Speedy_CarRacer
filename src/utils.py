@@ -4,9 +4,10 @@ from src.openai_vec_env.subproc_vec_env import SubprocVecEnv
 
 
 class EnvWrapper(gym.ObservationWrapper):
-    def __init__(self, env, n_frames=4):
+    def __init__(self, env, n_frames=4, frame_skip=4):
         super(EnvWrapper, self).__init__(env)
         self.n_frames = n_frames
+        self.frame_skip = frame_skip
 
         env.reset()
         env.env.viewer.window.dispatch_events()
@@ -21,25 +22,33 @@ class EnvWrapper(gym.ObservationWrapper):
         )
 
     def observation(self, observation):
-        observation = np.mean(observation, axis=-1)  # color to gray-scale
+        # Gray = .299R + .587G + .114B
+        observation = np.average(observation, axis=-1, weights=[0.299, 0.587, 0.114])
         observation = 2.0 * (observation / 255.0) - 1.0  # [0, 255] -> [-1.0, 1.0]
         return observation[:84, 20:76]
 
     def step(self, action):
-        env_obs, reward, done, info = self.env.step(action)
-        self.buffer[:-1] = self.buffer[1:]
-        self.buffer[-1] = self.observation(env_obs)
-        return self.buffer, reward, done, info
+        step_frames = []
+        reward = 0
+        for i in range(self.frame_skip):
+            env_obs, r, done, info = self.env.step(action)
+            step_frames.append(self.observation(env_obs))
+            reward += r
+            if done:
+                for j in range(self.n_frames - i - 1):
+                    step_frames.append(step_frames[-1])
+                self.reset()
+                break
+        return np.array(step_frames[-self.n_frames:]), reward, done, info
 
     def reset(self):
         reset_buffer = []
-        self.observation(self.env.reset())
-        for i in range(40):  # first 40 observations are useless
+        self.env.reset()
+        for i in range(35):  # first 35 observations are useless
             obs, _, _, _ = self.env.step(self.env.action_space.sample())
             reset_buffer.append(self.observation(obs))
         # noinspection PyUnboundLocalVariable
-        self.buffer = np.array(reset_buffer[-4:])
-        return self.buffer
+        return np.array(reset_buffer[-self.n_frames:])
 
 
 def create_env(num_environments):
