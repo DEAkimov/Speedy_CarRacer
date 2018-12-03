@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+from src.openai_vec_env.subproc_vec_env import SubprocVecEnv
 
 
 class EnvWrapper(gym.ObservationWrapper):
@@ -39,3 +40,13 @@ class EnvWrapper(gym.ObservationWrapper):
         # noinspection PyUnboundLocalVariable
         self.buffer = np.array(reset_buffer[-4:])
         return self.buffer
+
+
+def create_env(num_environments):
+    def make_env():
+        return EnvWrapper(gym.make('CarRacing-v0'))
+
+    vec_env = SubprocVecEnv([make_env for _ in range(num_environments)])
+    test_env = make_env()
+    print('env_pool of size {} and test env initialized.'.format(num_environments))
+    return vec_env, test_env

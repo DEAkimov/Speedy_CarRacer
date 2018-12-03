@@ -30,6 +30,6 @@ class Net(nn.Module):
         if self.train_second:
             param2 = self.policy_param_2(features)
         else:
-            param2 = self.policy_param_2.expand_as(param1)
+            param2 = self.policy_param_2.expand_as(param1).detach()
         value = self.value_layer(features).squeeze(-1)
         return param1, param2, value
