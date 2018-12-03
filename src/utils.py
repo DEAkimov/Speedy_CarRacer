@@ -4,7 +4,7 @@ from src.openai_vec_env.subproc_vec_env import SubprocVecEnv
 
 
 class EnvWrapper(gym.ObservationWrapper):
-    def __init__(self, env, n_frames=4, frame_skip=4):
+    def __init__(self, env, n_frames, frame_skip):
         super(EnvWrapper, self).__init__(env)
         self.n_frames = n_frames
         self.frame_skip = frame_skip
@@ -51,9 +51,9 @@ class EnvWrapper(gym.ObservationWrapper):
         return np.array(reset_buffer[-self.n_frames:])
 
 
-def create_env(num_environments):
+def create_env(num_environments, n_frames=4, frame_skip=4):
     def make_env():
-        return EnvWrapper(gym.make('CarRacing-v0'))
+        return EnvWrapper(gym.make('CarRacing-v0'), n_frames, frame_skip)
 
     vec_env = SubprocVecEnv([make_env for _ in range(num_environments)])
     test_env = make_env()
