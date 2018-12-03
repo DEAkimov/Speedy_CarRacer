@@ -3,6 +3,7 @@ import torch.nn as nn
 
 
 class Net(nn.Module):
+
     def __init__(self, train_second_param):
         super(Net, self).__init__()
         action_dim = 3
@@ -11,7 +12,7 @@ class Net(nn.Module):
             nn.Conv2d(32, 64, kernel_size=4, stride=2), nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=3), nn.ReLU(),
         )
-        self.projector = nn.Linear(1344, 512)
+        self.projector = nn.Linear(1024, 512)
         # both Normal and Beta distributions have 2 parameters
         self.policy_param_1 = nn.Linear(512, action_dim)
         self.train_second = train_second_param
