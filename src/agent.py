@@ -39,8 +39,8 @@ class Agent:
             # here action is assumed to be tanh(z)
             log_p_for_action = self.tanh_correction(action, log_p_for_action)
         log_p_for_action = log_p_for_action.sum(-1)
-        entropy = policy.entropy().prod(-1)
-        return log_p_for_action, value, entropy
+        variance = policy.variance.sum(-1)
+        return log_p_for_action, value, variance
 
     @staticmethod
     def tanh_correction(action, log_p_for_action):
