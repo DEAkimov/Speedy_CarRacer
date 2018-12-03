@@ -4,6 +4,7 @@ from src.openai_vec_env.subproc_vec_env import SubprocVecEnv
 
 
 class EnvWrapper(gym.ObservationWrapper):
+
     def __init__(self, env, n_frames=4):
         super(EnvWrapper, self).__init__(env)
         self.n_frames = n_frames
@@ -21,9 +22,11 @@ class EnvWrapper(gym.ObservationWrapper):
         )
 
     def observation(self, observation):
-        observation = np.mean(observation, axis=-1)  # color to gray-scale
-        observation = 2.0 * (observation / 255.0) - 1.0  # [0, 255] -> [-1.0, 1.0]
-        return observation[:84, 20:76]
+        # color to gray-scale
+        observation = np.mean(observation, axis=-1)
+        # [0, 255] -> [-1.0, 1.0]
+        observation = 2.0 * (observation / 255.0) - 1.0
+        return observation[15:-15, 11:-19]
 
     def step(self, action):
         env_obs, reward, done, info = self.env.step(action)
