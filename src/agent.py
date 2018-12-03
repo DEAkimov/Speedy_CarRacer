@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 
 
-distributions = {
+DISTRIBUTIONS = {
     'normal': torch.distributions.Normal,
     'tanh': torch.distributions.Normal,
     'beta': torch.distributions.Beta
@@ -10,11 +10,12 @@ distributions = {
 
 
 class Agent:
+
     def __init__(self, net, device, distribution):
         self.net = net
         self.device = device
         self.distribution = distribution
-        self.policy_distribution = distributions[distribution]
+        self.policy_distribution = DISTRIBUTIONS[distribution]
         self.init_print()
 
     def init_print(self):
@@ -27,7 +28,8 @@ class Agent:
             # beta distribution requires parameters to be greater than 1
             param1, param2 = 1.0 + F.softplus(param1), 1.0 + F.softplus(param2)
         else:
-            # normal distributions requires second param (variance) to be greater than 0
+            # normal distributions requires second param (variance) to be
+            # greater than 0
             param2 = torch.clamp(param2, -20, 2).exp()
         policy_distribution = self.policy_distribution(param1, param2)
         return policy_distribution, value
@@ -45,8 +47,8 @@ class Agent:
     @staticmethod
     def tanh_correction(action, log_p_for_action):
         log_p_for_action = log_p_for_action - \
-                           torch.log(torch.tensor(4.0, dtype=torch.float32)) + \
-                           2 * torch.log(torch.exp(action) + torch.exp(-action))
+            torch.log(torch.tensor(4.0, dtype=torch.float32)) + \
+            2 * torch.log(torch.exp(action) + torch.exp(-action))
         return log_p_for_action
 
     def act(self, state, greedy=False):
