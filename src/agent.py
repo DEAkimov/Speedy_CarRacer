@@ -28,7 +28,7 @@ class Agent:
             param1, param2 = 1.0 + F.softplus(param1), 1.0 + F.softplus(param2)
         else:
             # normal distributions requires second param (variance) to be greater than 0
-            param2 = param2.exp()  # TODO: bound this value
+            param2 = torch.clamp(param2, -20, 2).exp()
         policy_distribution = self.policy_distribution(param1, param2)
         return policy_distribution, value
 

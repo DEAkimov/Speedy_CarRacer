@@ -122,7 +122,7 @@ class Trainer:
             _, next_values = self.agent.policy(
                 next_observations.view(time * batch, *obs_size)
             )
-        # compute advantage with GAE
+        # compute advantage with GAE or TD difference
         if self.use_gae:
             advantage = self.compute_gae(rewards,
                                          values.view(time, batch),

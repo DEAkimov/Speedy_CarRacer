@@ -22,7 +22,7 @@ class EnvWrapper(gym.ObservationWrapper):
     def observation(self, observation):
         observation = np.mean(observation, axis=-1)  # color to gray-scale
         observation = 2.0 * (observation / 255.0) - 1.0  # [0, 255] -> [-1.0, 1.0]
-        return observation
+        return observation[:84, 20:76]
 
     def step(self, action):
         env_obs, reward, done, info = self.env.step(action)
@@ -33,7 +33,7 @@ class EnvWrapper(gym.ObservationWrapper):
     def reset(self):
         reset_buffer = []
         self.observation(self.env.reset())
-        for i in range(10):  # first 10 observations are useless
+        for i in range(40):  # first 40 observations are useless
             obs, _, _, _ = self.env.step(self.env.action_space.sample())
             reset_buffer.append(self.observation(obs))
         # noinspection PyUnboundLocalVariable
