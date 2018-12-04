@@ -83,6 +83,7 @@ class Trainer:
         return episode_reward
 
     def collect_batch(self, time_steps):
+        self.agent.reset_noise()
         observations, actions, rewards, is_done = [self.last_observation], [], [], []
         for step in range(time_steps):
             with torch.no_grad():
@@ -176,12 +177,12 @@ class Trainer:
                   next_observations, advantage, old_log_p):
         log_p, value, entropy = self.agent.log_p_for_action(observations, actions)
         ratio = (log_p - old_log_p).exp()
-        surrogate1 = ratio * advantage.detach()
-        surrogate2 = torch.clamp(ratio, 1.0 - self.ppo_eps, 1.0 + self.ppo_eps) * advantage.detach()
+        surrogate1 = ratio * advantage
+        surrogate2 = torch.clamp(ratio, 1.0 - self.ppo_eps, 1.0 + self.ppo_eps) * advantage
         policy_loss = torch.min(surrogate1, surrogate2).mean()
         with torch.no_grad():
             _, next_value = self.agent.policy(next_observations)
-        target_value = (rewards + self.gamma * (1.0 - is_done) * next_value).detach()
+        target_value = rewards + self.gamma * (1.0 - is_done) * next_value
         value_loss = self.value_loss(value, target_value)
         entropy = entropy.mean()
 
@@ -196,15 +197,21 @@ class Trainer:
 
         return policy_loss.item(), value_loss.item(), entropy.item()
 
-    def train(self, num_epochs, num_training_steps, env_steps):
-        print('training start. During 0 epoch policy loss is not optimized')
+    def train(self, warm_up, num_epochs, num_training_steps, env_steps):
+        message = 'training start'
+        if warm_up:
+            message = message + '. Warm up is on: during 0 epoch policy loss is not optimized'
+            start_epoch = 0
+        else:
+            start_epoch = 1
+        print(message)
         print('num_epochs: {}, steps_per_epochs: {}, env_steps: {}'.format(
             num_epochs, num_training_steps, env_steps
         ))
         # test performance before training
         test_reward = sum([self.test_performance() for _ in range(self.num_tests)])
         self.writer.add_scalar('test_reward', test_reward / self.num_tests, 0)
-        for epoch in range(num_epochs + 1):
+        for epoch in range(start_epoch, num_epochs + 1):
             for train_step in tqdm(range(num_training_steps),
                                    desc='epoch_{}'.format(epoch),
                                    ncols=80):

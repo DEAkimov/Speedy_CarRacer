@@ -20,6 +20,9 @@ class Agent:
     def init_print(self):
         print('agent initialized with {} policy'.format(self.distribution))
 
+    def reset_noise(self):
+        self.net.reset_noise()
+
     def policy(self, state):
         state = torch.tensor(state, dtype=torch.float32, device=self.device)
         logits, value = self.net(state)
