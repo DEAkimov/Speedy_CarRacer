@@ -1,7 +1,7 @@
 #!/bin/bash
 
 python3 train.py \
---num-envs 16 --num_frames 5 --frame-skip 5 \
+--num-envs 16 --num_frames 5 --frame-skip 5 --wrap-reward false \
 --noisy false --optimizer Adam --lr 1e-3 \
 --logdir logs/trial-1/ \
 --num_tests 3 --value_loss mse --entropy 1e-3 \

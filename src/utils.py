@@ -52,11 +52,26 @@ class EnvWrapper(gym.ObservationWrapper):
         return np.array(reset_buffer[-self.n_frames:])
 
 
-def create_env(num_environments, n_frames=4, frame_skip=4):
+class RewardWrapper(gym.RewardWrapper):
+    def __init__(self, env):
+        super(RewardWrapper, self).__init__(env)
+
+    def reward(self, reward):
+        if reward <= 0.1:
+            return -1
+        else:
+            return +1
+
+
+def create_env(wrap_reward, num_environments, n_frames=4, frame_skip=4):
     def make_env():
-        return EnvWrapper(gym.make('CarRacing-v0'), n_frames, frame_skip)
+        env = EnvWrapper(gym.make('CarRacing-v0'), n_frames, frame_skip)
+        if wrap_reward:
+            env = RewardWrapper(env)
+        return env
 
     vec_env = SubprocVecEnv([make_env for _ in range(num_environments)])
+    wrap_reward = False
     test_env = make_env()
     print('env_pool of size {} and test env initialized.'.format(num_environments))
     return vec_env, test_env

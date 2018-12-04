@@ -24,8 +24,10 @@ if __name__ == '__main__':
                         help='number of parallel environments for training (default: 16)')
     parser.add_argument('--num_frames', type=int, default=5,
                         help='number frames to stack in one observation (default: 5)')
-    parser.add_argument('--frame-skip', type=int, default=5,
+    parser.add_argument('--frame_skip', type=int, default=5,
                         help='number of skipped frames per step (default: 5)')
+    parser.add_argument('--wrap_reward', type=bool_arg, default='false',
+                        help='if true the all negative reward set to -1, all positive to + 1 (default: false)')
     # agent parameters
     parser.add_argument('--noisy', type=bool_arg, default='false',
                         help='if true then network use noisy linear layers (default: false)')
@@ -71,7 +73,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # initialize environment
-    vec_env, env = create_env(args.num_envs, args.num_frames, args.frame_skip)
+    vec_env, env = create_env(args.wrap_reward, args.num_envs, args.num_frames, args.frame_skip)
 
     # initialize agent
     net = Net(args.num_frames, args.noisy)
