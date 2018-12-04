@@ -1,15 +1,17 @@
 import torch
 from tqdm import tqdm
 import numpy as np
+from tensorboardX import SummaryWriter
+from .utils import save
 
 
 class Trainer:
     def __init__(self,
                  train_environment, num_environments, test_environment, num_tests,
-                 agent, distribution, device, optimizer, value_loss,
+                 agent, device, optimizer, value_loss,
                  entropy_reg, gamma, gae_lambda, normalize_advantage,
                  use_gae, ppo_eps, num_ppo_epochs, ppo_batch_size,
-                 writer):
+                 logdir):
         # environments
         self.train_environment = train_environment
         self.num_environments = num_environments
@@ -19,7 +21,6 @@ class Trainer:
 
         # agent and optimizer
         self.agent = agent
-        self.distribution = distribution
         self.device = device
         self.optimizer = optimizer
         assert value_loss in ['mse', 'huber'], \
@@ -40,7 +41,8 @@ class Trainer:
         self.ppo_batch_size = ppo_batch_size
 
         # writer and statistics
-        self.writer = writer
+        self.logdir = logdir
+        self.writer = SummaryWriter(logdir)
         self.worker_reward = np.zeros((num_environments,), dtype=np.float32)
         self.episodes_done = np.zeros((num_environments,), dtype=np.uint16)
 
@@ -57,7 +59,7 @@ class Trainer:
         self.init_print(value_loss)
 
     def init_print(self, vl):
-        print('trainer initialized')
+        print('trainer initialized, logdir: {}'.format(self.logdir))
         print('training parameters:')
         print('\t value_loss: {}, gamma: {}, entropy_reg: {}'.format(vl, self.gamma, self.entropy_reg))
         print('\t use_gae: {}, gae_lambda: {}, normalize_adv: {}'.format(
@@ -201,9 +203,9 @@ class Trainer:
         message = 'training start'
         if warm_up:
             message = message + '. Warm up is on: during 0 epoch policy loss is not optimized'
-            start_epoch = 0
+            add_epoch = 0
         else:
-            start_epoch = 1
+            add_epoch = 1
         print(message)
         print('num_epochs: {}, steps_per_epochs: {}, env_steps: {}'.format(
             num_epochs, num_training_steps, env_steps
@@ -211,12 +213,12 @@ class Trainer:
         # test performance before training
         test_reward = sum([self.test_performance() for _ in range(self.num_tests)])
         self.writer.add_scalar('test_reward', test_reward / self.num_tests, 0)
-        for epoch in range(start_epoch, num_epochs + 1):
+        for epoch in range(num_epochs + add_epoch):
             for train_step in tqdm(range(num_training_steps),
                                    desc='epoch_{}'.format(epoch),
                                    ncols=80):
                 batch = self.collect_batch(env_steps)
-                policy_loss, value_loss, entropy = self.train_on_batch(epoch == 0, batch)
+                policy_loss, value_loss, entropy = self.train_on_batch(epoch + add_epoch== 0, batch)
                 # write losses
                 step = train_step + epoch * num_training_steps
                 self.writer.add_scalar('policy_loss', policy_loss, step)
@@ -226,3 +228,4 @@ class Trainer:
             # test performance at the epoch end
             test_reward = sum([self.test_performance() for _ in range(self.num_tests)])
             self.writer.add_scalar('test_reward', test_reward / self.num_tests, epoch + 1)
+            save(self.logdir + 'epoch_{}.pth'.format(epoch), self.agent)

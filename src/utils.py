@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+import torch
 from src.openai_vec_env.subproc_vec_env import SubprocVecEnv
 
 
@@ -59,3 +60,9 @@ def create_env(num_environments, n_frames=4, frame_skip=4):
     test_env = make_env()
     print('env_pool of size {} and test env initialized.'.format(num_environments))
     return vec_env, test_env
+
+
+def save(filename, agent):
+    torch.save({
+        'net': agent.net.state_dict()
+    }, filename)

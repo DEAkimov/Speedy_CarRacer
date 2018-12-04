@@ -5,6 +5,9 @@
 
 comment lines 217 and 290 in gym/envs/box2d/car_racing.py
 
+on apple machines run this command before run scripts: 
+```defaults write org.python.python ApplePersistenceIgnoreState NO```
+
 ### Plan overview
 - [x] test environment
 - [x] write wrappers for the environment
