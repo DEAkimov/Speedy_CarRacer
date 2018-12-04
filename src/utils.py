@@ -23,8 +23,8 @@ class EnvWrapper(gym.ObservationWrapper):
 
     def observation(self, observation):
         # Gray = .299R + .587G + .114B
-        observation = np.average(observation, axis=-1, weights=[0.299, 0.587, 0.114])
         observation = 2.0 * (observation / 255.0) - 1.0  # [0, 255] -> [-1.0, 1.0]
+        observation = np.average(observation, axis=-1, weights=[0.299, 0.587, 0.114])
         return observation[:84, 20:76]
 
     def step(self, action):

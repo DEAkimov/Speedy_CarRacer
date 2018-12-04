@@ -2,4 +2,5 @@ venv
 .idea/
 *.pyc
 *.ipynb
+*.ipynb_checkpoints/
 logs/

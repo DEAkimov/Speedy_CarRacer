@@ -120,7 +120,7 @@ class Trainer:
             gae.append(step_gae)
         return torch.stack(gae[::-1], dim=0)
 
-    def train_on_batch(self, batch):
+    def train_on_batch(self, warm_up, batch):
         observations, actions, rewards, is_done = batch
         observations, next_observations = observations[:-1], observations[1:]
         time, batch = rewards.size()
@@ -144,7 +144,7 @@ class Trainer:
             temp = rewards + self.gamma * (1.0 - is_done) * next_values.view(time, batch)
             advantage = temp - values.view(time, batch)
         if self.normalize_advantage:
-            advantage = (advantage - advantage.mean()) / (advantage.std())
+            advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-4)
 
         # run PPO epochs
         policy_loss, value_loss, entropy = 0., 0., 0.
@@ -155,7 +155,7 @@ class Trainer:
                                             is_done, next_observations,
                                             advantage, old_log_p)
             # train on batch and update statistics
-            epoch_policy_loss, epoch_value_loss, epoch_entropy = self.ppo_epoch(*ppo_batch)
+            epoch_policy_loss, epoch_value_loss, epoch_entropy = self.ppo_epoch(warm_up, *ppo_batch)
             policy_loss += epoch_policy_loss
             value_loss += epoch_value_loss
             entropy += epoch_entropy
@@ -171,21 +171,25 @@ class Trainer:
                next_observations.view(-1, *obs_size)[indices], \
                advantage.view(-1)[indices], old_log_p.view(-1)[indices]
 
-    def ppo_epoch(self, observations, actions, rewards, is_done,
+    def ppo_epoch(self, warm_up,
+                  observations, actions, rewards, is_done,
                   next_observations, advantage, old_log_p):
         log_p, value, entropy = self.agent.log_p_for_action(observations, actions)
         ratio = (log_p - old_log_p).exp()
-        surrogate1 = ratio * advantage
-        surrogate2 = torch.clamp(ratio, 1.0 - self.ppo_eps, 1.0 + self.ppo_eps) * advantage
+        surrogate1 = ratio * advantage.detach()
+        surrogate2 = torch.clamp(ratio, 1.0 - self.ppo_eps, 1.0 + self.ppo_eps) * advantage.detach()
         policy_loss = torch.min(surrogate1, surrogate2).mean()
         with torch.no_grad():
             _, next_value = self.agent.policy(next_observations)
-        target_value = rewards + self.gamma * (1.0 - is_done) * next_value
+        target_value = (rewards + self.gamma * (1.0 - is_done) * next_value).detach()
         value_loss = self.value_loss(value, target_value)
         entropy = entropy.mean()
 
-        # may be we should balance value and policy losses
-        loss = value_loss - policy_loss - self.entropy_reg * entropy
+        if warm_up:
+            loss = value_loss - self.entropy_reg * entropy
+        else:
+            # may be we should balance value and policy losses
+            loss = value_loss - policy_loss - self.entropy_reg * entropy
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -193,19 +197,19 @@ class Trainer:
         return policy_loss.item(), value_loss.item(), entropy.item()
 
     def train(self, num_epochs, num_training_steps, env_steps):
-        print('training start')
+        print('training start. During 0 epoch policy loss is not optimized')
         print('num_epochs: {}, steps_per_epochs: {}, env_steps: {}'.format(
             num_epochs, num_training_steps, env_steps
         ))
         # test performance before training
         test_reward = sum([self.test_performance() for _ in range(self.num_tests)])
         self.writer.add_scalar('test_reward', test_reward / self.num_tests, 0)
-        for epoch in range(num_epochs):
+        for epoch in range(num_epochs + 1):
             for train_step in tqdm(range(num_training_steps),
-                                   desc='epoch_{}'.format(epoch + 1),
+                                   desc='epoch_{}'.format(epoch),
                                    ncols=80):
                 batch = self.collect_batch(env_steps)
-                policy_loss, value_loss, entropy = self.train_on_batch(batch)
+                policy_loss, value_loss, entropy = self.train_on_batch(epoch == 0, batch)
                 # write losses
                 step = train_step + epoch * num_training_steps
                 self.writer.add_scalar('policy_loss', policy_loss, step)
