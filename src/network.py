@@ -18,10 +18,8 @@ class Net(nn.Module):
             nn.Conv2d(32, 64, kernel_size=3), nn.SELU(),
         )
         self.projector = linear(1344, 512)
-        self.policy_stream = linear(512, 128)
-        self.policy_layer = linear(128, num_actions)
-        self.value_stream = linear(512, 128)
-        self.value_layer = linear(128, 1)
+        self.policy_layer = linear(512, num_actions)
+        self.value_layer = linear(512, 1)
         self.init_print()
 
     def init_print(self):
@@ -42,10 +40,6 @@ class Net(nn.Module):
         batch = screen.size(0)
         conv_features = self.conv(screen)  # [batch, 64, 7, 3]
         features = selu(self.projector(conv_features.view(batch, -1)))
-
-        policy_stream = selu(self.policy_stream(features))
-        policy = self.policy_layer(policy_stream)
-
-        value_stream = selu(self.value_stream(features))
-        value = self.value_layer(value_stream).squeeze(-1)
+        policy = self.policy_layer(features)
+        value = self.value_layer(features).squeeze(-1)
         return policy, value

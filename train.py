@@ -53,13 +53,6 @@ if __name__ == '__main__':
                         help='lambda parameter for GAE (default: 0.95)')
     parser.add_argument('--normalize_adv', type=bool_arg, default='false',
                         help='if true then advantage normalized over batch and time dimensions (default: false)')
-    # ppo parameters
-    parser.add_argument('--ppo_eps', type=float, default=0.1,
-                        help='ppo clipping parameter (default: 0.1)')
-    parser.add_argument('--ppo_epochs', type=int, default=5,
-                        help='number of ppo optimization epochs (default: 5)')
-    parser.add_argument('--ppo_batch', type=int, default=40,
-                        help='ppo batch size (default: 40)')
     # training parameters
     parser.add_argument('warm_up', type=bool_arg, default='false',
                         help='if true then critic will be trained one additional epoch before actor (default: false)')
@@ -87,7 +80,6 @@ if __name__ == '__main__':
                       agent, device, optimizer, args.value_loss,
                       args.entropy, args.gamma, args.gae_lambda,
                       args.normalize_adv, args.use_gae,
-                      args.ppo_eps, args.ppo_epochs, args.ppo_batch,
                       args.logdir)
     print('======================= start training ======================')
     warm_up = False
