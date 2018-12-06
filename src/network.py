@@ -15,11 +15,11 @@ class Net(nn.Module):
         self.conv = nn.Sequential(
             nn.Conv2d(num_frames, 16, kernel_size=8, stride=4), nn.SELU(),
             nn.Conv2d(16, 32, kernel_size=4, stride=2), nn.SELU(),
-            nn.Conv2d(32, 64, kernel_size=3), nn.SELU(),
+            nn.Conv2d(32, 32, kernel_size=3), nn.SELU(),
         )
-        self.projector = linear(1344, 512)
-        self.policy_layer = linear(512, num_actions)
-        self.value_layer = linear(512, 1)
+        self.projector = linear(672, 256)
+        self.policy_layer = linear(256, num_actions)
+        self.value_layer = linear(256, 1)
         self.init_print()
 
     def init_print(self):
