@@ -70,7 +70,7 @@ class Trainer:
         done = False
         episode_reward = 0.0
         while not done:
-            action = self.agent.act([observation])
+            action = self.agent.act([observation], True)
             env_action = self.project_actions(action).cpu().numpy()[0]
             observation, reward, done, _ = self.test_environment.step(env_action)
             episode_reward += reward

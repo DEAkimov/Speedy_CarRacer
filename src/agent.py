@@ -28,10 +28,13 @@ class Agent:
         policy_distribution = self.policy_distribution(logits=logits)
         return policy_distribution, value
 
-    def act(self, state):
+    def act(self, state, greedy=False):
         with torch.no_grad():
             policy, value = self.policy(state)
-        action = policy.sample()
+        if greedy:
+            action = policy.logits.argmax(-1)
+        else:
+            action = policy.sample()
         return action
 
     def __call__(self, state):
