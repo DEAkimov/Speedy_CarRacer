@@ -2,6 +2,7 @@ torch==0.4.1
 tensorboardX
 numpy
 tqdm
-gym
 box2d
 box2d-kengz
+gym
+gym[box2d]
