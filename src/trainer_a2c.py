@@ -79,7 +79,7 @@ class Trainer:
         return episode_reward
 
     def collect_batch(self, time_steps):
-        self.agent.reset_noise()
+        # self.agent.reset_noise()
         values, log_p_for_actions, batch_entropy, rewards, is_done = [], [], [], [], []
         for step in range(time_steps):
             action, value, log_p_for_action, entropy = self.agent(self.last_observation)

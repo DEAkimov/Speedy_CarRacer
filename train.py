@@ -69,7 +69,8 @@ if __name__ == '__main__':
     vec_env, env = create_env(args.wrap_reward, args.num_envs, args.num_frames, args.frame_skip)
 
     # initialize agent
-    net = Net(args.num_frames, args.noisy)
+    # net = Net(args.num_frames, args.noisy)
+    net = Net(args.num_frames)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     net.to(device)
     agent = Agent(net, device)
@@ -83,6 +84,6 @@ if __name__ == '__main__':
                       args.logdir)
     print('======================= start training ======================')
     warm_up = False
-    trainer.train(warm_up, 20, 150, 10)
+    trainer.train(warm_up, args.num_epochs, args.steps_per_epoch, args.env_steps)
     print('======================= training done =======================')
     print('models saved in {}'.format(args.logdir))
